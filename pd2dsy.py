@@ -28,6 +28,7 @@ import os
 import argparse
 import subprocess
 import shutil
+import sys
 import fileinput
 #import hvcc.hvcc as hv
 
@@ -64,6 +65,7 @@ replaceComments = {
     "Controls"  :  "// GENERATE CONTROLS",
     "Target"    :  "# GENERATE TARGET",
     "Board"     :  "// GENERATE BOARD",
+    "Progpath"  :  "GENERATE_PROGPATH"
 }
     
 def generateCpp():
@@ -100,13 +102,14 @@ def generateCpp():
         
 def generateMakefile():
     searchReplace(paths["Makefile"], replaceComments["Target"], 'TARGET = ' + basename)
-        
+    searchReplace(paths["Makefile"], replaceComments["Progpath"], paths["Progpath"])
+
 def generateBoard():
     #board type
     searchReplace(paths["Board"], replaceComments["Board"], '#define DSY_BOARD Daisy' + board.capitalize())    
 
     #remove comments around board init stuff
-    searchReplace(paths["Board"], "/* " + board, "")    
+    searchReplace(paths["Board"], "/* " + board, "")
     searchReplace(paths["Board"], board + " */", "")    
     
 replaceFunctions = {
@@ -116,47 +119,66 @@ replaceFunctions = {
 }
 
 def main():
-    parser = argparse.ArgumentParser(description='Utility for converting Puredate files to Daisy projects, uses HVCC inside')
+    parser = argparse.ArgumentParser(description='Utility for converting Puredata files to Daisy projects, uses HVCC inside')
     parser.add_argument('pd_input', help='path to puredata file.')
     parser.add_argument('-b',  '--board', help='hardware platform for generated output.', default='seed')
     parser.add_argument('-p',  '--search_paths', action='append', help="Add a list of directories to search through for abstractions.")
     parser.add_argument('-c',  '--hvcc_cmd', type=str, help="hvcc command.", default='python hvcc/hvcc.py')
+    parser.add_argument('-o', '--out_dir', help="dir for generated code")
 
     args = parser.parse_args()
+    ctx = argparse.Namespace()
     inpath = os.path.abspath(args.pd_input)
     search_paths = args.search_paths or []
 
     global basename
     basename = os.path.basename(inpath).split('.')[0]
 
-    global board
-    board = args.board.lower()
-    print(("Converting {} for {} platform".format(basename, board)))
-
-    # run heavy
-    os.mkdir(basename)
-    command = '{} {} {} -o {} -n {} -g c'.format(args.hvcc_cmd, inpath, ' '.join('-p '+p for p in search_paths), basename, basename)
-    os.system(command)
-
-    # Copy over template.cpp, Makefile, and daisy_boards.h
-    shutil.copy(os.path.abspath('util/template.cpp'), os.path.abspath(basename))
-    shutil.copy(os.path.abspath('util/Makefile'), os.path.abspath(basename))
-    shutil.copy(os.path.abspath('util/daisy_boards.h'), os.path.abspath(basename))
-
     #template filename
     global filename
     filename = basename + '.cpp'
 
+    global board
+    board = args.board.lower()
+    print("Converting {} for {} platform".format(basename, board))
+
+    ctx.progpath = os.path.dirname(os.path.abspath(sys.argv[0]))
+    ctx.basename = basename
+    ctx.filename = filename
+    ctx.board = board
+    ctx.out_dir = basename
+    if args.out_dir:
+        ctx.out_dir = args.out_dir
+
+    # paths to headers and libs are relative to this program,
+    # so make sure we are where the program is.
+    os.chdir(ctx.progpath)
+    #print("Working directory is now {}".format(progpath))
+
+    # run heavy
+    os.mkdir(ctx.out_dir)
+    command = '{} {} {} -o {} -n {} -g c'.format(args.hvcc_cmd, inpath, ' '.join('-p '+p for p in search_paths), ctx.out_dir, basename)
+    os.system(command)
+    print('Executing {}'.format(command))
+    
+    # Copy over template.cpp and daisy_boards.h
+    for srcfile in ('util/template.cpp', 'util/Makefile', 'util/daisy_boards.h'):
+        shutil.copy(srcfile, ctx.out_dir)
+
     #paths to files, and move template
-    paths["Directory"] = os.path.abspath(basename)
-    paths["Template"] = os.path.abspath(basename + '/' + filename)
-    os.rename(os.path.abspath(basename + '/template.cpp'), paths["Template"])
-       
-    paths["Makefile"] = os.path.abspath(basename + '/Makefile')        
-    paths["Board"] = os.path.abspath(basename + '/daisy_boards.h')
+    paths["Directory"] = ctx.out_dir
+    paths["Template"] = os.path.join(ctx.out_dir, filename)
+    os.rename(os.path.join(ctx.out_dir, 'template.cpp'), paths["Template"])
+    
+    paths["Makefile"] = os.path.join(ctx.out_dir, 'Makefile')        
+    paths["Board"] = os.path.join(ctx.out_dir, 'daisy_boards.h')
+    paths["Progpath"] = ctx.progpath
+    paths["Outdir"] = ctx.out_dir
 
     for i in replaceFunctions:
         replaceFunctions[i]()
-    
+
+    print('Generated code is at {}'.format(ctx.out_dir))
+
 if __name__ == "__main__":
     main()

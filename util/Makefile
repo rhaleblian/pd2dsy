@@ -2,7 +2,7 @@
 # GENERATE TARGET
 
 # Library Locations
-LIBDAISY_DIR = ../../libdaisy
+LIBDAISY_DIR ?= GENERATE_PROGPATH/libdaisy
 HVCC_DIR = c
 
 # HVCC Sources
