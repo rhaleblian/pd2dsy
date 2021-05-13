@@ -32,7 +32,7 @@ import shutil
 import sys
 import fileinput
 #import hvcc.hvcc as hv
-
+print(sys.path)
 #sorry for all the global vars....
 basename = ''
 filename = ''
@@ -124,7 +124,7 @@ def main():
     parser.add_argument('pd_input', help='path to puredata file.')
     parser.add_argument('-b',  '--board', help='hardware platform for generated output.', default='seed')
     parser.add_argument('-p',  '--search_paths', action='append', help="Add a list of directories to search through for abstractions.")
-    parser.add_argument('-c',  '--hvcc_cmd', type=str, help="hvcc command.", default='python hvcc/bin/hvcc')
+    parser.add_argument('-c',  '--hvcc_cmd', type=str, help="hvcc command.", default='python hvcc/hvcc.py')
     parser.add_argument('-o', '--out_dir', help="dir for generated code")
 
     args = parser.parse_args()
@@ -160,9 +160,13 @@ def main():
     os.mkdir(ctx.out_dir)
     command = '{} {} {} -o {} -n {} -g c'.format(args.hvcc_cmd, inpath, ' '.join('-p '+p for p in search_paths), ctx.out_dir, basename)
     print('Executing {}'.format(command))
-    rc = subprocess.run(shlex.split(command))
-    print(rc)
-    
+    # An uninstalled hvcc needs to see Python packages relative to the repo root.
+    # env = os.environ
+    # env['PYTHONPATH'] = os.path.dirname(os.path.abspath(args.hvcc_cmd))
+    process = subprocess.run(shlex.split(command))
+    if process.returncode:
+        sys.exit(process.returncode)
+
     # Copy over template.cpp and daisy_boards.h
     for srcfile in ('util/template.cpp', 'util/Makefile', 'util/daisy_boards.h'):
         shutil.copy(srcfile, ctx.out_dir)
