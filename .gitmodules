@@ -1,6 +1,6 @@
 [submodule "hvcc"]
 	path = hvcc
-	url = git@github.com:Wasted-Audio/hvcc
+	url = https://github.com/Wasted-Audio/hvcc
 	branch = develop
 [submodule "libdaisy"]
 	path = libdaisy
