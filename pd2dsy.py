@@ -124,7 +124,7 @@ def main():
     parser.add_argument('pd_input', help='path to puredata file.')
     parser.add_argument('-b',  '--board', help='hardware platform for generated output.', default='seed')
     parser.add_argument('-p',  '--search_paths', action='append', help="Add a list of directories to search through for abstractions.")
-    parser.add_argument('-c',  '--hvcc_cmd', type=str, help="hvcc command.", default='python hvcc/hvcc.py')
+    parser.add_argument('-c',  '--hvcc_cmd', type=str, help="hvcc command.", default='python3 hvcc/bin/hvcc')
     parser.add_argument('-o', '--out_dir', help="dir for generated code")
 
     args = parser.parse_args()
